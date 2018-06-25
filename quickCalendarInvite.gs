@@ -10,7 +10,6 @@ function doGet(e) {
   var regX_withNamedParty = /with\s[a-zA-Z]*'[a-zA-Z]+\b\s|with\s[a-zA-Z]+\b\s[a-zA-Z]{3,15}\b\s[a-zA-Z]{3,15}\b(?=\s)|with\s[a-zA-Z]+\b\s[a-zA-Z]{3,15}\b(?=\s)|with\s[a-zA-Z]+\b(?=\s)|\\w\s[a-zA-Z]*'[a-zA-Z]+\b\s|\\w\s[a-zA-Z]+\b\s[a-zA-Z]{3,15}\b\s[a-zA-Z]{3,15}\b(?=\s)|\\w\s[a-zA-Z]+\b\s[a-zA-Z]{3,15}\b(?=\s)|\\w\s[a-zA-Z]+\b(?=\s)/i; //Returns up to three names using "with" or "\\w" as a starting token
   var regX_location = /@\s(?!\d+\s*[apAP]M|\d+:\d+\s*[apAP]).+?(?=\son|\swith|\s\\w|$)/i; //returns the location using "@" as a starting token
   var regX_meetingInfo = /^[a-zA-Z|\s]+(?=\swith|\s\\w)|^[a-zA-Z|\s]+(?=\s@|\sat)|^[a-zA-Z|\s]+(?=\son\b)/i; //returns the meeting type information using the start of the string as the starting token
-  //Logger.log(regX_month_date_day.exec(rawdat))
   function grouped(e, n){
       if(e != null){
         return e[n];
