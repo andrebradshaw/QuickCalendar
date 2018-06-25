@@ -1,12 +1,12 @@
 function doGet(e) {
-  var rawdat = e.parameter.output;
+  var rawdat = e.parameter.output;//input string from bookmarklet
   var nowis = new Date();
   var nowDay = nowis.getDay();
   var nowYear = nowis.getFullYear();
   
   var monthArray = ["jan","january","feb","february","mar","march","apr","april","may","jun","june","jul","july","oct","october","aug","august","sep","september","nov","november","dec","december"];
   var wkdayArr = ["sunday","monday","tuesday","wednesday","thursday","friday","saturday"];
-  var regX_month_date_day = /jan[a-z]*\s\d+|feb[a-z]*\s\d+|mar[a-z]*\s\d+|arp[a-z]*\s\d+|may|jun[a-z]*\s\d+|jul[a-z]*\s\d+|aug[a-z]*\s\d+|sep[a-z]*\s\d+|oct[a-z]*\s\d+|nov[a-z]*\s\d+|dec[a-z]*\s\d+|monday|tuesday|wednesday|thursday|friday|saturday/i; //returns a MONTH DATE || a Weekday
+  var regX_month_date_day = /jan[a-z]*\s\d+|feb[a-z]*\s\d+|mar[a-z]*\s\d+|arp[a-z]*\s\d+|may|jun[a-z]*\s\d+|jul[a-z]*\s\d+|aug[a-z]*\s\d+|sep[a-z]*\s\d+|oct[a-z]*\s\d+|nov[a-z]*\s\d+|dec[a-z]*\s\d+|monday|tuesday|wednesday|thursday|friday|saturday|sunday/i; //returns a MONTH DATE || a Weekday
   var regX_withNamedParty = /with\s[a-zA-Z]*'[a-zA-Z]+\b\s|with\s[a-zA-Z]+\b\s[a-zA-Z]{3,15}\b\s[a-zA-Z]{3,15}\b(?=\s)|with\s[a-zA-Z]+\b\s[a-zA-Z]{3,15}\b(?=\s)|with\s[a-zA-Z]+\b(?=\s)|\\w\s[a-zA-Z]*'[a-zA-Z]+\b\s|\\w\s[a-zA-Z]+\b\s[a-zA-Z]{3,15}\b\s[a-zA-Z]{3,15}\b(?=\s)|\\w\s[a-zA-Z]+\b\s[a-zA-Z]{3,15}\b(?=\s)|\\w\s[a-zA-Z]+\b(?=\s)/i; //Returns up to three names using "with" or "\\w" as a starting token
   var regX_location = /@\s(?!\d+\s*[apAP]M|\d+:\d+\s*[apAP]).+?(?=\son|\swith|\s\\w|$)/i; //returns the location using "@" as a starting token
   var regX_meetingInfo = /^[a-zA-Z|\s]+(?=\swith|\s\\w)|^[a-zA-Z|\s]+(?=\s@|\sat)|^[a-zA-Z|\s]+(?=\son\b)/i; //returns the meeting type information using the start of the string as the starting token
@@ -89,14 +89,21 @@ function doGet(e) {
   var meet_party = regXtru_or_emptystr(regX_withNamedParty, rawdat, "with\\s*");
   var meet_type = regXtru_or_emptystr(regX_meetingInfo, rawdat, "")
   var meet_dateTime = regXtru_or_emptystr(regX_month_date_day, rawdat, "");
-
+  
+    Logger.log(meet_dateTime)
   if(/\Bday\b/.test(meet_dateTime) === true){ 
     var inviteTime = returnFormttedTime(rawdat);  
-    var days_ahead = (wkdayArr.indexOf(meet_dateTime.toLowerCase()) + (Math.abs(nowDay-7)));	
-    var date_notTime = new Date(new Date().getTime() + (86400000 * days_ahead));
+	var scheduleRequestDayIndex = wkdayArr.indexOf(meet_dateTime.toLowerCase());
+	if(scheduleRequestDayIndex < nowDay){
+	  var daysLeftInWeek = (6-nowDay)+1;	
+  	  var days_ahead =  daysLeftInWeek + scheduleRequestDayIndex;	
+	}else{
+      var days_ahead = (wkdayArr.indexOf(meet_dateTime.toLowerCase()) - nowDay);	
+	}
+    var date_notTime = new Date(nowis.getTime() + (86400000 * days_ahead));
     var inviteDate = /(.+?)\s\d\d:\d\d:/.exec(date_notTime.toString())[1];   
     var meetingDateTime = new Date(inviteDate+' '+inviteTime);
-  }//if day of week, not Month Date, get the Month Date corresponding to the requested day of week, combine with the listed time, and return string as a formatted date.
+  }//if day of week, not Month Date, get the Month Date in the next 6 days which is corresponding to the requested day of week, combine with the listed time, and return string as a formatted date.
   
   if(/jan[a-z]*\s\d+|feb[a-z]*\s\d+|mar[a-z]*\s\d+|arp[a-z]*\s\d+|may|jun[a-z]*\s\d+|jul[a-z]*\s\d+|aug[a-z]*\s\d+|sep[a-z]*\s\d+|oct[a-z]*\s\d+|nov[a-z]*\s\d+|dec[a-z]*\s\d+/i.test(meet_dateTime) === true){
     var inputDay = meet_dateTime+' '+nowYear;
@@ -104,17 +111,18 @@ function doGet(e) {
     var meetingDateTime = new Date(inputDay+' '+inviteTime);
   }//if meeting is set as Month Date format
   
-  
+    Logger.log(meetingDateTime)
   var evnt = meetingDateTime;
-  var endt = new Date(meetingDateTime.getTime()+1800000);
+  var endt = new Date(meetingDateTime.getTime()+1800000); //end time stops after 30 mintues (18000000 mil secs).
   var events = CalendarApp.getDefaultCalendar().getEvents(evnt, endt);
 
-  if(events.length <1){
+  if(events.length <1){//if no other calendar item exists within the given time frame (30 minutes from start)
+
     if(returnEmailPartyIfThere(rawdat).length >0){
       var guestEmailArr = returnEmailPartyIfThere(rawdat);
       var cal = CalendarApp.getDefaultCalendar();
       cal.createEvent(meet_type+' with '+guestEmailArr, new Date(meetingDateTime.getTime()),new Date(meetingDateTime.getTime()+1800000), {guests: guestEmailArr, location: meet_location, description: rawdat, sendInvites:true});
-      return ContentService.createTextOutput("set calendar item for "+meet_type+' with '+meet_party+' on '+meetingDateTime+' @ '+meet_location);
+      return ContentService.createTextOutput("set calendar item for "+meet_type+' with '+guestEmailArr+' on '+meetingDateTime+' @ '+meet_location);
       } else {
       var cal = CalendarApp.getDefaultCalendar();
       cal.createEvent(meet_type+' with '+meet_party, new Date(meetingDateTime.getTime()),new Date(meetingDateTime.getTime()+1800000), {location: meet_location, description: rawdat, sendInvites:true});
