@@ -14,6 +14,7 @@ The start of the string is used as the token. Always begin meetings with the mee
 
 Meeting party declaration:
 "with" or "\w" or "email@address.net"
+
   Example_1: 
 meeting with Jerry Bob Billbobington @ Starbucks cafe on august 12th @ 12 pm
   Example_2: meeting with Database Team rich@query.clinic data@query.clinic andre@quickli.io
@@ -31,6 +32,7 @@ Meeting date / time declaration: (meeting time defaults to 30 min.. will add a f
 
 Meeting location declaration:
 " at " or "@ " 
+
   Example_1: Coffee with Jerome on Friday at 9am at Starbucks
   Example_2: Coffee with Erdna erdnawahsdarb@gmail.com on Friday at 9am @ Revelator Coffee
 
