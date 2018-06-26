@@ -8,8 +8,12 @@ function doGet(e) {
   var wkdayArr = ["sunday","monday","tuesday","wednesday","thursday","friday","saturday"];
   var regX_month_date_day = /jan[a-z]*\s\d+|feb[a-z]*\s\d+|mar[a-z]*\s\d+|arp[a-z]*\s\d+|may|jun[a-z]*\s\d+|jul[a-z]*\s\d+|aug[a-z]*\s\d+|sep[a-z]*\s\d+|oct[a-z]*\s\d+|nov[a-z]*\s\d+|dec[a-z]*\s\d+|monday|tuesday|wednesday|thursday|friday|saturday|sunday/i; //returns a MONTH DATE || a Weekday
   var regX_withNamedParty = /with\s[a-zA-Z]*'[a-zA-Z]+\b\s|with\s[a-zA-Z]+\b\s[a-zA-Z]{3,15}\b\s[a-zA-Z]{3,15}\b(?=\s)|with\s[a-zA-Z]+\b\s[a-zA-Z]{3,15}\b(?=\s)|with\s[a-zA-Z]+\b(?=\s)|\\w\s[a-zA-Z]*'[a-zA-Z]+\b\s|\\w\s[a-zA-Z]+\b\s[a-zA-Z]{3,15}\b\s[a-zA-Z]{3,15}\b(?=\s)|\\w\s[a-zA-Z]+\b\s[a-zA-Z]{3,15}\b(?=\s)|\\w\s[a-zA-Z]+\b(?=\s)/i; //Returns up to three names using "with" or "\\w" as a starting token
-  var regX_location = /@\s(?!\d+\s*[apAP]M|\d+:\d+\s*[apAP]).+?(?=\son|\swith|\s\\w|$)/i; //returns the location using "@" as a starting token
+  var regX_location = /@\s(?!\d+\s*[apAP]M|\d+:\d+\s*[apAP]).+?(?=\son|\swith|\s\\w|$)|\bat\b\s(?!\d+\s*[apAP]M|\d+:\d+\s*[apAP]).+?(?=\son|\swith|\s\\w|$)/i; //returns the location using "@" or " at " as a starting token
   var regX_meetingInfo = /^[a-zA-Z|\s]+(?=\swith|\s\\w)|^[a-zA-Z|\s]+(?=\s@|\sat)|^[a-zA-Z|\s]+(?=\son\b)/i; //returns the meeting type information using the start of the string as the starting token
+  var regX_meetingLength = /^\d+\sminute|^\d+\shour|^\d+\sday/i;//returns meeting duration
+  var regX_meetingType_2 = /minute\w*\s[a-zA-Z|\s]+(?=\swith|\s\\w|\s@|\sat|\son\b)|hour\w*\s[a-zA-Z|\s]+(?=\swith|\s\\w|\s@|\sat|\son\b)|\bday\w*\s[a-zA-Z|\s]+(?=\swith|\s\\w|\s@|\sat|\son\b)/i;
+ 
+
   function grouped(e, n){
       if(e != null){
         return e[n];
@@ -84,12 +88,16 @@ function doGet(e) {
     return timeFormatted;
   }
   
-  var meet_location = regXtru_or_emptystr(regX_location, rawdat, "@\\s*");
+  var meet_location = regXtru_or_emptystr(regX_location, rawdat, "@\\s*|\\bat\\b\\s");
   var meet_party = regXtru_or_emptystr(regX_withNamedParty, rawdat, "with\\s*");
-  var meet_type = regXtru_or_emptystr(regX_meetingInfo, rawdat, "")
   var meet_dateTime = regXtru_or_emptystr(regX_month_date_day, rawdat, "");
   
-    Logger.log(meet_dateTime)
+  var meet_type = regXtru_or_emptystr(regX_meetingInfo, rawdat, "");
+
+  if(regX_meetingType_2.test(rawdat) === true){
+    var meet_type = regXtru_or_emptystr(regX_meetingType_2, rawdat, "\\bday\\w*|minute\\w*|hour\\w*");
+  }
+  
   if(/\Bday\b/.test(meet_dateTime) === true){ 
     var inviteTime = returnFormttedTime(rawdat);  
 	var scheduleRequestDayIndex = wkdayArr.indexOf(meet_dateTime.toLowerCase());
@@ -109,10 +117,27 @@ function doGet(e) {
     var inviteTime = returnFormttedTime(rawdat);
     var meetingDateTime = new Date(inputDay+' '+inviteTime);
   }//if meeting is set as Month Date format
-  
-    Logger.log(meetingDateTime)
+
+var meetingDuration = 1800000;
+
+if(regX_meetingLength.test(rawdat) === true){
+	var meetingLengthInfo = regX_meetingLength.exec(rawdat).toString();
+ 	var regX_meetingDuration = /(\d+)\s+([a-zA-Z]+)/i.exec(meetingLengthInfo);
+
+	if(/hour/i.test(regX_meetingDuration[2]) === true){
+		var meetingDuration = parseInt(regX_meetingDuration[1]) * 3600000;
+	}
+	if(/minute/i.test(regX_meetingDuration[2]) === true){
+		var meetingDuration = parseInt(regX_meetingDuration[1]) * 60000;
+	}
+	if(/\bday/i.test(regX_meetingDuration[2]) === true){
+		var meetingDuration = parseInt(regX_meetingDuration[1]) * 86400000;
+	}
+
+}
+
   var evnt = meetingDateTime;
-  var endt = new Date(meetingDateTime.getTime()+1800000); //end time stops after 30 mintues (18000000 mil secs).
+  var endt = new Date(meetingDateTime.getTime()+meetingDuration); //end time stops after 30 mintues (18000000 mil secs).
   var events = CalendarApp.getDefaultCalendar().getEvents(evnt, endt);
 
   if(events.length <1){//if no other calendar item exists within the given time frame (30 minutes from start)
@@ -120,11 +145,11 @@ function doGet(e) {
     if(returnEmailPartyIfThere(rawdat).length >0){
       var guestEmailArr = returnEmailPartyIfThere(rawdat);
       var cal = CalendarApp.getDefaultCalendar();
-      cal.createEvent(meet_type+' with '+guestEmailArr, new Date(meetingDateTime.getTime()),new Date(meetingDateTime.getTime()+1800000), {guests: guestEmailArr, location: meet_location, description: rawdat, sendInvites:true});
+      cal.createEvent(meet_type+' with '+guestEmailArr, new Date(meetingDateTime.getTime()),new Date(meetingDateTime.getTime()+meetingDuration), {guests: guestEmailArr, location: meet_location, description: rawdat, sendInvites:true});
       return ContentService.createTextOutput("set calendar item for "+meet_type+' with '+guestEmailArr+' on '+meetingDateTime+' @ '+meet_location);
       } else {
       var cal = CalendarApp.getDefaultCalendar();
-      cal.createEvent(meet_type+' with '+meet_party, new Date(meetingDateTime.getTime()),new Date(meetingDateTime.getTime()+1800000), {location: meet_location, description: rawdat, sendInvites:true});
+      cal.createEvent(meet_type+' with '+meet_party, new Date(meetingDateTime.getTime()),new Date(meetingDateTime.getTime()+meetingDuration), {location: meet_location, description: rawdat, sendInvites:true});
       return ContentService.createTextOutput("set calendar item for "+meet_type+' with '+meet_party+' on '+meetingDateTime+' @ '+meet_location);
     }
   } else {
