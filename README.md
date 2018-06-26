@@ -9,10 +9,20 @@ This tool will read your natural language input via regular expressions and crea
 
 This tool requires a basic syntax, but allows for a lot of variation.
 
+Meeting time declaration:
+
+Meeting time default is 30 minutes. To change the duration, start your string with the requested time duration.
+
+Example_1: 20 minute meeting with team andre@quickli.io rich@quickli.io on Friday at 8am @ Conference Room B
+
+Example_2: 3 day vacation with andre@quickli.io on July 2 at 7am @ Out of office
+
+Example_3: 2 hour new hire orientation with New Hire Team rich@quickli.io bobby@quickli.io on Thursday at 11am @ Conference Room A
+
 
 Meeting type declaration: 
 
-The start of the string is used as the token. Always begin meetings with the meeting type. The regular expression will end the meeting type with it sees the word "with" OR " \w " OR "@" OR "on" OR "at"
+The start of the string is used as the token. Always begin meetings with the meeting type unless you are specifying a meeting duration first. The regular expression will end the meeting type with it sees the word "with" OR " \w " OR "@" OR "on" OR "at"
 
 
 Meeting party declaration:
